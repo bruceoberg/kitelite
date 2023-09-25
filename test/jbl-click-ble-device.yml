@@ -1,0 +1,13 @@
+Advertised Device:
+ Name: JBL Click,
+  Address: ac:b1:ee:94:9c:e9,
+   appearance: 960,
+    manufacturer data: e0030111110d,
+    serviceUUID: 00001812-0000-1000-8000-00805f9b34fb,
+    serviceUUID: 00001812-0000-1000-8000-00805f9b34fb,
+    serviceUUID: 0000180a-0000-1000-8000-00805f9b34fb,
+    serviceUUID: 0000180f-0000-1000-8000-00805f9b34fb,
+    rssi: -38 
+Advertised Name: JBL Click 
+
+/Users/bruceoberg/Library/Arduino15/packages/esp32/hardware/esp32/2.0.11/libraries/BLE/src
