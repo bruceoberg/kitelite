@@ -6,5 +6,5 @@
 
 #include "clock.h"
 #include "input.h"
-
+#include "trace.h"
 
