@@ -4,7 +4,11 @@
 
 #include <esp_cpu.h>
 
-typedef S32 TICK;
+typedef S64 TICK;
+
+static const TICK TICK_Epoch = 0;
+static const TICK TICK_Max = INT64_MAX;
+static const TICK TICK_Nil = -1;
 
 inline TICK TickNow()
 {

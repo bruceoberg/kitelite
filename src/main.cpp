@@ -1,14 +1,10 @@
 #include "main.h"
 
-int g_tick = 0;
-
 void setup()
 {
 	Trace::Startup();
 	TRACE("reached setup()\n");
 }
-
-TICK g_tickFrame = 0;
 
 void loop()
 {

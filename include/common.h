@@ -14,6 +14,9 @@ typedef int16_t		S16;
 typedef int32_t		S32;
 typedef int64_t		S64;
 
+typedef unsigned char		Ch;
+typedef unsigned wchar_t	Wch;
+
 template<U32 N, class T>
 constexpr U32 DIM(T(&)[N]) { return N; }
 
