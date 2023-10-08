@@ -3,7 +3,6 @@
 void setup()
 {
 	Trace::Startup();
-	TRACE("reached setup()\n");
 }
 
 void loop()
