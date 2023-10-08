@@ -4,21 +4,23 @@
 
 // common types & macros
 
-typedef uint8_t		U8;
-typedef uint16_t	U16;
-typedef uint32_t	U32;
-typedef uint64_t	U64;
+using U8 =	uint8_t;
+using U16 =	uint16_t;
+using U32 =	uint32_t;
+using U64 =	uint64_t;
 
-typedef int8_t		S8;
-typedef int16_t		S16;
-typedef int32_t		S32;
-typedef int64_t		S64;
+using S8 =	int8_t;
+using S16 =	int16_t;
+using S32 =	int32_t;
+using S64 =	int64_t;
 
-typedef unsigned char		Ch;
-typedef unsigned wchar_t	Wch;
+using Ch = unsigned char;
+using Wch = wchar_t;
 
 template<U32 N, class T>
 constexpr U32 DIM(T(&)[N]) { return N; }
+
+
 
 // no-op function to force breakpointable points in the code
 
