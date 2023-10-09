@@ -4,29 +4,61 @@
 
 #include <esp_cpu.h>
 
-typedef S64 TICK;
+typedef S64 USEC;
 
-static const TICK TICK_Epoch = 0;
-static const TICK TICK_Max = INT64_MAX;
-static const TICK TICK_Nil = -1;
+static const USEC USEC_Epoch = 0;
+static const USEC USEC_Max = INT64_MAX;
+static const USEC USEC_Nil = -1;
 
-inline TICK TickNow()
+inline USEC UsecNow()
 {
 	return esp_timer_get_time();
 }
 
-inline float TFromTick(TICK tick)
+inline float TFromUsec(USEC usec)
 {
-	return float(tick) / 1e6f;
+	return float(usec) / 1e6f;
+}
+
+inline float DTFromDUsec(USEC dUsec)
+{
+	return TFromUsec(dUsec);
+}
+
+inline float TNow()
+{
+	return TFromUsec(UsecNow());
 }
 
 namespace Clock
 {
 	void Update();
 
-	extern TICK g_tickFrame;
-	extern TICK g_tickFramePrev;
+	extern USEC g_usecFrame;
+	extern USEC g_usecFramePrev;
 	extern float g_tFrame;
 	extern float g_tFramePrev;
 	extern float g_dTFrame;
 }
+
+class CUpStamp // tag: us
+{
+public:
+				CUpStamp(USEC usec = UsecNow())
+				: m_usec(usec)
+					{ ; }
+
+	void	Reset()
+				{ m_usec = UsecNow(); }
+
+	USEC	Usec() const
+				{ return m_usec; }
+
+	USEC	DUsec() const
+				{ return UsecNow() - m_usec; }
+	float	DT() const
+				{ return DTFromDUsec(DUsec()); }
+
+protected:
+	USEC	m_usec;
+};

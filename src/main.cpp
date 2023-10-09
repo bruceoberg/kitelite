@@ -3,11 +3,15 @@
 void setup()
 {
 	Trace::Startup();
+	OnBoard::Startup();
+	Input::Startup();
 }
 
 void loop()
 {
 	Clock::Update();
+	OnBoard::Update();
+	Input::Update();
 
 	TRACE(
 		Clock::g_tFrame < 20.0f && int(Clock::g_tFramePrev) != int(Clock::g_tFrame),
