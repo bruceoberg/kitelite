@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include "bluetooth.h"
 #include "clock.h"
 #include "input.h"
 #include "onboard.h"
