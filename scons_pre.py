@@ -1,4 +1,4 @@
-# extra script to expose platformio.ini values (and other stuff) to C++ code
+# pre-build script to expose platformio.ini values (and other stuff) to C++ code
 
 from pathlib import Path
 
