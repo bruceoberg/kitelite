@@ -22,6 +22,20 @@ constexpr U32 DIM(T(&)[N]) { return N; }
 
 
 
+// Clearing
+
+inline void ClearAb(size_t cB, void * pB)
+{
+	memset(pB, 0, cB);
+}
+
+template<U32 N, class T>
+inline void ClearArray(T (& aT)[N] )
+{
+	ClearAb(N * sizeof(T), aT);
+}
+
+
 // no-op function to force breakpointable points in the code
 
 void Force();
