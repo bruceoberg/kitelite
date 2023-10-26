@@ -7,4 +7,4 @@
 #include "input.h"
 #include "onboard.h"
 #include "trace.h"
-
+#include "lights.h"
