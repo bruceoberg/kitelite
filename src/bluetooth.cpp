@@ -1,6 +1,10 @@
 #include "common.h"
 #include "bluetooth.h"
 
+#if ENABLE_BLUETOOTH
+
+#define ENABLE_BLUETOOTH_SCANNER 0
+
 #include "clock.h"
 #include "input.h"
 #include "trace.h"
@@ -29,8 +33,13 @@ namespace BlueTooth
 						: m_fIsActive(false)
 							{ ; }
 		
+#if ENABLE_BLUETOOTH_SCANNER
 		void	Init();
 		void	Update();
+#else // !ENABLE_BLUETOOTH_SCANNER
+		inline void	Init() { ; };
+		inline void	Update() { ; };
+#endif // !ENABLE_BLUETOOTH_SCANNER
 
 	protected:
 
@@ -205,6 +214,7 @@ void CScanner::OnScanCompleteStatic(BLEScanResults blesr)
 	g_scanner.OnScanComplete(blesr);
 }
 
+#if ENABLE_BLUETOOTH_SCANNER
 void CScanner::Init()
 {
 	BLEScan * pBlescan = BLEDevice::getScan();	// BLE lib maintains this as a singleton
@@ -240,6 +250,7 @@ void CScanner::Update()
 	pBlescan->start(s_dTScan, OnScanCompleteStatic, s_fContinuePreviousScan);
 	m_fIsActive = true;
 }
+#endif // ENABLE_BLUETOOTH_SCANNER
 
 void CClient::RequestConnect(BLEAddress blea, esp_ble_addr_type_t ebat)
 {
@@ -445,14 +456,14 @@ void BlueTooth::Startup()
 
 	BLEDevice::init(PROJECT_NAME);
 
-//	g_scanner.Init();
 	g_security.Init();
-
-	esp_log_level_set("BLEAdvertisedDevice.cpp", ESP_LOG_NONE);
+	g_scanner.Init();
 }
 
 void BlueTooth::Update()
 {
-//	g_scanner.Update();
+	g_scanner.Update();
 	g_client.Update();
 }
+
+#endif // ENABLE_BLUETOOTH
