@@ -39,6 +39,21 @@ namespace Clock
 	extern float g_tFrame;
 	extern float g_tFramePrev;
 	extern float g_dTFrame;
+
+	inline U32 CHeartBeat(float dT)
+	{
+		return U32(g_tFrame / dT);
+	}
+
+	inline U32 CHeartBeatPrev(float dT)
+	{
+		return U32(g_tFramePrev / dT);
+	}
+
+	inline bool FHeartBeat(float dT)
+	{
+		return (CHeartBeat(dT) != CHeartBeatPrev(dT));
+	}
 }
 
 class CUpStamp // tag: us
