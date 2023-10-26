@@ -1,6 +1,6 @@
 #pragma once
 
-#define ENABLE_BLUETOOTH 1
+#define ENABLE_BLUETOOTH 0
 
 namespace BlueTooth
 {

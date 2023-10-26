@@ -15,14 +15,24 @@ inline USEC UsecNow()
 	return esp_timer_get_time();
 }
 
-inline float TFromUsec(USEC usec)
+inline constexpr float TFromUsec(USEC usec)
 {
 	return float(usec) / 1e6f;
 }
 
-inline float DTFromDUsec(USEC dUsec)
+inline constexpr USEC UsecFromT(float t)
+{
+	return USEC(t * 1e6f);
+}
+
+inline constexpr float DTFromDUsec(USEC dUsec)
 {
 	return TFromUsec(dUsec);
+}
+
+inline constexpr USEC DUsecFromDT(float dT)
+{
+	return UsecFromT(dT);
 }
 
 inline float TNow()
