@@ -4,6 +4,8 @@
 
 #include "FastLED.h"
 
+#define ENABLE_ONBOARD_NEOPIXEL 1
+
 namespace OnBoard
 {
 	// Digital IO pin connected to the button. This will be driven with a
@@ -55,9 +57,11 @@ void OnBoard::Startup()
 {
 	pinMode(Button::s_pin, INPUT);
 
+#if ENABLE_ONBOARD_NEOPIXEL
 	FastLED.addLeds<NEOPIXEL, NeoPixel::s_pin>(&NeoPixel::g_rgb, NeoPixel::s_cRgb);
 	FastLED.clear(true);
 	FastLED.show();
+#endif // ENABLE_ONBOARD_NEOPIXEL
 }
 
 void OnBoard::Update()
@@ -66,6 +70,7 @@ void OnBoard::Update()
 
 	bool fIsDown = Input::FIsKeyDown(Input::KEY_OnBoard);
 
+#if ENABLE_ONBOARD_NEOPIXEL
 	NeoPixel::HUE hue = fIsDown ? NeoPixel::HUE_Blue : NeoPixel::HUE_Green;
 	float dTCycle = 0.5f;
 	float rT = PI / dTCycle;
@@ -76,5 +81,6 @@ void OnBoard::Update()
 
 	NeoPixel::g_rgb.setHSV(hue, NeoPixel::SAT_Full, val);
 
-	FastLED.show();
+	// NOTE bruceo: FastLED.show() done in loop() so multiple modules all get shown/synced at once.
+#endif // ENABLE_ONBOARD_NEOPIXEL
 }

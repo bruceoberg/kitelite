@@ -1,7 +1,8 @@
 #include "main.h"
 
-constexpr float s_dTFrameRateMax = 1.0f / 120.0f;
-constexpr USEC s_dUsecFrameRateMax = DUsecFromDT(s_dTFrameRateMax);
+#include "FastLED.h"
+
+#define ENABLE_FASTLED_SHOW 1
 
 void setup()
 {
@@ -20,23 +21,20 @@ void loop()
 	BlueTooth::Update();
 	Lights::Update();
 
+#if ENABLE_FASTLED_SHOW
+	// showing LEDs after all updates so multiple modules (e.g. onboard and lights) can cooperate.
+
+	FastLED.show();
+#endif // ENABLE_FASTLED_SHOW
+
 	static const bool s_fTrace = true;
 	static const float s_tActive = 20.0f;
 	bool fActive = (Clock::g_tFrame < s_tActive);
 	bool fSecondRollover = Clock::FHeartBeat(1.0f);
 
-	// enforce max frame rate. without this, FastLED controlled lights will be
-	// chaotic when we run too fast (e.g. when bluetooth is disabled).
-
-	USEC dUsecFrameRemaining = UsecNow() - Clock::g_usecFrame;
-	U32 dMsecFrameRemaining = U32(dUsecFrameRemaining / 1000);
-
-	delay(dMsecFrameRemaining);
-
 	TRACE(
 		s_fTrace && fActive && fSecondRollover,
-		"t: %05.6f (%0.6f) delay: %dmsec\n",
+		"t: %05.6f (%0.6f)\n",
 		Clock::g_tFrame,
-		Clock::g_dTFrame,
-		dMsecFrameRemaining);
+		Clock::g_dTFrame);
 }
