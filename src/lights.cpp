@@ -1,5 +1,9 @@
 #include "lights.h"
 
+#if ENABLE_LIGHTS
+
+#include "common.h"
+
 #include "clock.h"
 #include "trace.h"
 
@@ -136,3 +140,5 @@ void Lights::Update()
 
 	// NOTE bruceo: FastLED.show() done in loop() so multiple modules all get shown/synced at once.
 }
+
+#endif // ENABLE_LIGHTS
