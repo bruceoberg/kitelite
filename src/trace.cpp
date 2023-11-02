@@ -18,6 +18,9 @@ void Trace::Startup()
 	static const U32 s_configDefault = SERIAL_8N1;	// from arduino's HardwareSerial::begin() declaration
 
 	Serial.begin(MONITOR_SPEED, s_configDefault, pinRx, pinTx);
+	while (!Serial) {
+		delay(100); // wait for native usb
+	}
 
 	TRACE(g_fTrace, "reached '%s'\n", __PRETTY_FUNCTION__);
 }
