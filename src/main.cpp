@@ -11,6 +11,7 @@ void setup()
 	Input::Startup();
 	BlueTooth::Startup();
 	Lights::Startup();
+	Motion::Startup();
 }
 
 void loop()
@@ -20,6 +21,7 @@ void loop()
 	Input::Update();
 	BlueTooth::Update();
 	Lights::Update();
+	Motion::Update();
 
 #if ENABLE_FASTLED_SHOW
 	// showing LEDs after all updates so multiple modules (e.g. onboard and lights) can cooperate.
@@ -28,8 +30,8 @@ void loop()
 #endif // ENABLE_FASTLED_SHOW
 
 	static const bool s_fTrace = true;
-	static const float s_tActive = 20.0f;
-	bool fActive = (Clock::g_tFrame < s_tActive);
+	static const float s_tHeartBeat = 0.0f; // 20.0f; // TTY heardbeat until this time
+	bool fActive = (Clock::g_tFrame < s_tHeartBeat);
 	bool fSecondRollover = Clock::FHeartBeat(1.0f);
 
 	TRACE(
