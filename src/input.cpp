@@ -24,7 +24,7 @@ namespace Input
 						}
 					}
 		bool	FIsDown() const
-					{ return m_usUp.Usec() <= m_usDown.Usec(); }
+					{ return m_usUp.Usec() < m_usDown.Usec(); }
 
 		CUpStamp	m_usUp;		// last seen up state
 		CUpStamp	m_usDown;	// last seen down state
