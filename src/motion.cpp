@@ -95,6 +95,7 @@ namespace MotionCal
 		{
 			TRACE("[MOTION] can't calibrate - missing a sensor\n");
 			g_fTraceCalibration = false;
+			return;
 		}
 
 		// motioncal app wants integers, and the factors below are how the adafruit ahrs
