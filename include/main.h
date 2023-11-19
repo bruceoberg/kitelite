@@ -4,6 +4,7 @@
 
 #include "bluetooth.h"
 #include "clock.h"
+#include "display.h"
 #include "input.h"
 #include "lights.h"
 #include "motion.h"
