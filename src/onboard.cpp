@@ -14,7 +14,28 @@ namespace OnBoard
 
 	namespace Button
 	{
-		constexpr int s_pin = BUTTON;
+		struct SButtonParams // tag: buttonp
+		{
+			U8			m_pin;	// pin number
+			U8			m_mode;	// mode for pinMode() during Startup()
+			U8			m_down;	// pin state meaning "down"
+			Input::KEY	m_key;	// input key enum
+		};
+
+		static const SButtonParams s_aButtonp[] =
+		{
+#if PLAT_FEATHER_V2
+			{ BUTTON, INPUT, LOW, Input::KEY_OnBoard0 },
+#elif PLAT_FEATHER_S3
+			{ 0, INPUT_PULLUP, LOW, Input::KEY_OnBoard0 },
+#elif PLAT_FEATHER_S3_REVTFT
+			{ 0, INPUT_PULLUP, LOW, Input::KEY_OnBoard0 },
+			{ 1, INPUT_PULLDOWN, HIGH, Input::KEY_OnBoard1 },
+			{ 2, INPUT_PULLDOWN, HIGH, Input::KEY_OnBoard2 },
+#else
+#error Unknown platform
+#endif
+		};
 	}
 
 	// Single neopixel
@@ -55,7 +76,10 @@ using namespace OnBoard;
 
 void OnBoard::Startup()
 {
-	pinMode(Button::s_pin, INPUT);
+	for (const auto & buttonp : Button::s_aButtonp)
+	{
+		pinMode(buttonp.m_pin, buttonp.m_mode);
+	}
 
 #if ENABLE_ONBOARD_NEOPIXEL
 	FastLED.addLeds<NEOPIXEL, NeoPixel::s_pin>(&NeoPixel::g_rgb, NeoPixel::s_cRgb);
@@ -66,12 +90,22 @@ void OnBoard::Startup()
 
 void OnBoard::Update()
 {
-	Input::SetKeyDown(Input::KEY_OnBoard, (digitalRead(Button::s_pin) == LOW));
-
-	bool fIsDown = Input::FIsKeyDown(Input::KEY_OnBoard);
+	for (const auto & buttonp : Button::s_aButtonp)
+	{
+		Input::SetKeyDown(buttonp.m_key, (digitalRead(buttonp.m_pin) == buttonp.m_down));
+	}
 
 #if ENABLE_ONBOARD_NEOPIXEL
-	NeoPixel::HUE hue = fIsDown ? NeoPixel::HUE_Blue : NeoPixel::HUE_Green;
+	bool fIsDown0 = Input::FIsKeyDown(Input::KEY_OnBoard0);
+	bool fIsDown1 = Input::FIsKeyDown(Input::KEY_OnBoard1);
+	bool fIsDown2 = Input::FIsKeyDown(Input::KEY_OnBoard2);
+	NeoPixel::HUE hue = fIsDown0
+							? NeoPixel::HUE_Blue
+							: (fIsDown1
+								? NeoPixel::HUE_Red
+								: (fIsDown2
+									? NeoPixel::HUE_Yellow
+									: NeoPixel::HUE_Green));
 	float dTCycle = 0.5f;
 	float rT = PI / dTCycle;
 	float uVal = 0.5f + 0.5f * sin(rT * TNow());	// pi seconds per cycle

@@ -18,7 +18,9 @@ namespace Input
 
 	enum KEY
 	{
-		KEY_OnBoard,
+		KEY_OnBoard0,
+		KEY_OnBoard1,
+		KEY_OnBoard2,
 
 		KEY_Max,
 		KEY_Nil = -1
