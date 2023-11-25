@@ -1,4 +1,5 @@
 #include "trace.h"
+#include "clock.h"
 
 namespace Trace
 {
@@ -25,9 +26,13 @@ void Trace::Startup()
 	Serial.begin(MONITOR_SPEED);
 #endif // !PLAT_FEATHER_V2
 
-	while (!Serial) {
-		delay(100); // wait for native usb
+	static const float s_dTSerialSettleMax = 10.0f; // give TTY time to get initialized
+	CUpStamp usSerialSettle;
+
+	while (!Serial && usSerialSettle.DT() < s_dTSerialSettleMax)
+	{
+		delay(100);
 	}
 
-	TRACE(g_fTrace, "reached '%s'\n", __PRETTY_FUNCTION__);
+	TRACE(g_fTrace, "\n\n[TRACE] reached '%s' after USB wait of %0.1fs\n", __PRETTY_FUNCTION__, usSerialSettle.DT());
 }
