@@ -37,7 +37,7 @@ void loop()
 	bool fSecondRollover = Clock::FHeartBeat(1.0f);
 
 	TRACE(
-		s_fTrace && fActive && fSecondRollover,
+		s_fTrace && fActive && fSecondRollover && !ENABLE_DISPLAY, // with a display, don't worry about heartbeat TTY
 		"t: %05.6f (%0.6f)\n",
 		Clock::g_tFrame,
 		Clock::g_dTFrame);

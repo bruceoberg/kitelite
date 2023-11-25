@@ -274,7 +274,7 @@ void CClient::Update()
 	switch (m_state)
 	{
 	case STATE_Idle:
-		if (Input::FIsKeyDown(Input::KEY_OnBoard))
+		if (Input::FIsKeyDown(Input::KEY_OnBoard0))
 		{
 			BLEAddress blea("ac:b1:ee:94:a0:ed");
 			esp_ble_addr_type_t ebat = BLE_ADDR_TYPE_PUBLIC;

@@ -16,7 +16,7 @@
 namespace Motion
 {
 	constexpr bool s_fTrace = true;
-	bool g_fTraceCalibration = true;
+	bool g_fTraceCalibration = false;
 
 	Adafruit_Sensor * g_pSensAccel = nullptr;
 	Adafruit_Sensor * g_pSensGyro = nullptr;

@@ -2,6 +2,7 @@
 
 #if ENABLE_DISPLAY
 
+#include "onboard.h"
 #include "trace.h"
 
 #include <Adafruit_ST7789.h> 
@@ -29,26 +30,47 @@ void Display::Startup()
 {
 	TRACE(s_fTrace, "[DISPLAY] reached '%s'\n", __PRETTY_FUNCTION__);
 
-	g_display.init(s_dY, s_dX);	// NOTE bruceo: yes these are in backwards order on purpose.
+	g_display.init(s_dY, s_dX);	// NOTE bruceo: backwards because we're in landscape?
 	g_display.setRotation(s_rotation);
 	g_canvas.setFont(&FreeSans12pt7b);
 	g_canvas.setTextColor(ST77XX_WHITE); 
+    pinMode(TFT_BACKLITE, OUTPUT);
 }
 
 
 
 void Display::Update()
 {
-	// CRGB rgb;
-	// rgb.setHue(g_hueCur);
-	// uint16_t colText = uint16_t((rgb.r >> 3) << 11) | uint16_t((rgb.g >> 2) << 5) | uint16_t(rgb.b >> 3);
-    // g_canvas.setTextColor(colText);
+	uint16_t colText =
+				uint16_t((OnBoard::ColorCycle::r >> 3) << 11) |
+				uint16_t((OnBoard::ColorCycle::g >> 2) << 5) |
+				uint16_t((OnBoard::ColorCycle::b >> 3) << 0);
+    g_canvas.setTextColor(colText);
 
     g_canvas.fillScreen(ST77XX_BLACK);
-    g_canvas.setCursor(0, 34);
-    g_canvas.println("Bruce's Feather");
+
+	S16 x;
+	S16 y;
+	U16 dX;
+	U16 dY;
+
+	g_canvas.getTextBounds(PROJECT_NAME, 0, 0, &x, &y, &dX, &dY);
+	// center text on canvas
+	S16 xCursor = ((s_dX - dX) / 2) + x;
+	S16 yCursor = ((s_dY - dY) / 2) - y;
+
+	static bool s_fTraceMetrics = false; // s_fTrace;
+
+	TRACE(
+		s_fTraceMetrics,
+		"[DISPLAY] x:%d, y:%d, dX:%d, dY:%d, xCursor:%d yCursor:%d\n",
+		x, y, dX, dY, xCursor, yCursor);
+
+	s_fTraceMetrics = false;
+
+    g_canvas.setCursor(xCursor, yCursor);
+    g_canvas.println(PROJECT_NAME);
     g_display.drawRGBBitmap(0, 0, g_canvas.getBuffer(), s_dX, s_dY);
-    pinMode(TFT_BACKLITE, OUTPUT);	// BB bruceo: do this once in setup? or write it low then high?
     digitalWrite(TFT_BACKLITE, HIGH);
 }
 

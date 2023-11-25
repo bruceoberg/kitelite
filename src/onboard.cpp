@@ -4,7 +4,10 @@
 
 #include "FastLED.h"
 
-#define ENABLE_ONBOARD_NEOPIXEL 1
+// NOTE bruceo: don't use neopixel if we can avoid it. doing so puts FastLED into "disable interrupts" mode
+// which can mess with bluetooth.
+
+#define ENABLE_ONBOARD_NEOPIXEL 0 // (!PLAT_FEATHER_S3_REVTFT)
 
 namespace OnBoard
 {
@@ -70,6 +73,13 @@ namespace OnBoard
 		constexpr VAL VAL_None = 0;
 		constexpr VAL VAL_Full = 255;
 	}
+
+	namespace ColorCycle
+	{
+		U8 r = 255;
+		U8 g = 255;
+		U8 b = 255;
+	}
 }
 
 using namespace OnBoard;
@@ -85,7 +95,10 @@ void OnBoard::Startup()
 	FastLED.addLeds<NEOPIXEL, NeoPixel::s_pin>(&NeoPixel::g_rgb, NeoPixel::s_cRgb);
 	FastLED.clear(true);
 	FastLED.show();
-#endif // ENABLE_ONBOARD_NEOPIXEL
+#elif defined(NEOPIXEL_POWER)
+	pinMode(NEOPIXEL_POWER, OUTPUT);
+	digitalWrite(NEOPIXEL_POWER, LOW);
+#endif // !ENABLE_ONBOARD_NEOPIXEL && defined(NEOPIXEL_POWER)
 }
 
 void OnBoard::Update()
@@ -95,17 +108,28 @@ void OnBoard::Update()
 		Input::SetKeyDown(buttonp.m_key, (digitalRead(buttonp.m_pin) == buttonp.m_down));
 	}
 
-#if ENABLE_ONBOARD_NEOPIXEL
 	bool fIsDown0 = Input::FIsKeyDown(Input::KEY_OnBoard0);
 	bool fIsDown1 = Input::FIsKeyDown(Input::KEY_OnBoard1);
 	bool fIsDown2 = Input::FIsKeyDown(Input::KEY_OnBoard2);
-	NeoPixel::HUE hue = fIsDown0
-							? NeoPixel::HUE_Blue
-							: (fIsDown1
-								? NeoPixel::HUE_Red
-								: (fIsDown2
-									? NeoPixel::HUE_Yellow
-									: NeoPixel::HUE_Green));
+	NeoPixel::SAT sat = NeoPixel::SAT_None;
+	NeoPixel::HUE hue = NeoPixel::HUE_Red; // ignored because of SAT_None;
+
+	if (fIsDown0)
+	{
+		sat = NeoPixel::SAT_Full;
+		hue = NeoPixel::HUE_Red;
+	}
+	else if (fIsDown1)
+	{
+		sat = NeoPixel::SAT_Full;
+		hue = NeoPixel::HUE_Green;
+	}
+	else if (fIsDown2)
+	{
+		sat = NeoPixel::SAT_Full;
+		hue = NeoPixel::HUE_Blue;
+	}
+	
 	float dTCycle = 0.5f;
 	float rT = PI / dTCycle;
 	float uVal = 0.5f + 0.5f * sin(rT * TNow());	// pi seconds per cycle
@@ -113,8 +137,16 @@ void OnBoard::Update()
 	NeoPixel::VAL valMax = NeoPixel::VAL_Full / 2;
 	NeoPixel::VAL val = valMin + NeoPixel::VAL(uVal * (valMax - valMin));
 
-	NeoPixel::g_rgb.setHSV(hue, NeoPixel::SAT_Full, val);
+	NeoPixel::g_rgb.setHSV(hue, sat, val);
+
+	CRGB rgbCycle;
+	NeoPixel::VAL valBrightMin = NeoPixel::VAL_Full / 2;
+	NeoPixel::VAL valBrightMax = NeoPixel::VAL_Full;
+	NeoPixel::VAL valBright = valBrightMin + NeoPixel::VAL(uVal * (valBrightMax - valBrightMin));
+	rgbCycle.setHSV(hue, sat, valBright);
+	ColorCycle::r = rgbCycle.r;
+	ColorCycle::g = rgbCycle.g;
+	ColorCycle::b = rgbCycle.b;
 
 	// NOTE bruceo: FastLED.show() done in loop() so multiple modules all get shown/synced at once.
-#endif // ENABLE_ONBOARD_NEOPIXEL
 }
