@@ -31,7 +31,7 @@ void loop()
 	FastLED.show();
 #endif // ENABLE_FASTLED_SHOW
 
-	static const bool s_fTrace = true;
+	static const bool s_fTrace = !PLAT_FEATHER_S3_REVTFT;	// screen serves as heartbeat
 	static const float s_tHeartBeat = 20.0f; // TTY heardbeat until this time
 	bool fActive = (Clock::g_tFrame < s_tHeartBeat);
 	bool fSecondRollover = Clock::FHeartBeat(1.0f);
