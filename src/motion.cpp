@@ -3,6 +3,7 @@
 #if ENABLE_MOTION
 
 #include "common.h"
+#include "clock.h"
 #include "trace.h"
 
 #include "etl/vector.h"
@@ -16,7 +17,7 @@
 namespace Motion
 {
 	constexpr bool s_fTrace = true;
-	bool g_fTraceCalibration = false;
+	bool g_fTraceCalibration = true;
 
 	Adafruit_Sensor * g_pSensAccel = nullptr;
 	Adafruit_Sensor * g_pSensGyro = nullptr;
@@ -83,6 +84,202 @@ void Motion::Startup()
 
 namespace MotionCal
 {
+
+	class CReader // tag: reader
+	{
+	public:
+					CReader()
+					: m_state(STATE_Header),
+					  m_usecState(UsecNow()),
+					  m_iB(0),
+					  m_aB()
+						{ ; }
+		
+		void		Update();
+
+	protected:
+
+		enum STATE
+		{
+			STATE_Header,
+			STATE_Values,
+
+			STATE_Max,
+			STATE_Min = 0,
+			STATE_Nil = -1
+		};
+
+		const char * PChzFromState(STATE state)
+		{
+			if (state == STATE_Nil)
+				return "Nil";
+
+			if (state >= STATE_Min && state < STATE_Max)
+			{
+				static const char * s_mpStatePchz[] =
+				{
+					"Idle",
+					"Header",
+					"Values",
+				};
+
+				return s_mpStatePchz[state];
+			}
+
+			return "<Unknown>";
+		}
+
+		void		SetState(STATE state);
+
+		// see receiveCalibration() and crc16_update() here:
+		//	https://github.com/adafruit/Adafruit_AHRS/blob/master/examples/calibration/calibration.ino
+
+		bool		FIsCrcCorrect() const;
+		void		SetCalib(Adafruit_Sensor_Calibration * pCalib) const;
+
+		STATE		m_state;
+		USEC		m_usecState;
+
+		int			m_iB;			// may point into s_aBHeader or m_aB
+		U8			m_aB[68];		// 16 floats (4 bytes each) + 2 byte header + 2 byte crc correction
+
+		static U8	s_aBHeader[];	// byte
+	};
+
+	U8 CReader::s_aBHeader[] = { 117, 84 };
+	CReader g_reader;
+
+
+	void CReader::Update()
+	{
+		STATE statePrev = m_state;
+
+		while (true)
+		{
+			statePrev = m_state;
+
+			switch (m_state)
+			{
+			case STATE_Header:
+				if (Serial.available())
+				{
+					assert(m_iB < DIM(s_aBHeader));
+
+					if (Serial.read() == s_aBHeader[m_iB])
+					{
+						// keep header in buffer for crc later
+
+						m_aB[m_iB] = s_aBHeader[m_iB];
+
+						++m_iB;
+
+						if (m_iB == DIM(s_aBHeader))
+						{
+							SetState(STATE_Values);
+						}
+					}
+					else
+					{
+						m_iB = 0;
+					}
+				}
+				break;
+
+			case STATE_Values:
+				if (Serial.available())
+				{
+					assert(m_iB < DIM(m_aB));
+
+					m_aB[m_iB] = Serial.read();
+					++m_iB;
+
+					if (m_iB < DIM(m_aB))
+						break;
+
+					if (FIsCrcCorrect())
+					{
+						SetCalib(&g_calib);
+					}
+
+					SetState(STATE_Header);
+				}
+				break;
+			}
+
+			if (statePrev == m_state)
+				break;
+		};
+	}
+
+	void CReader::SetState(STATE state)
+	{
+		if (state == m_state)
+			return;
+
+		m_state = state;
+		m_usecState = UsecNow();
+
+		// new state
+
+		switch (m_state)
+		{
+		case STATE_Header:
+			m_iB = 0;
+			break;
+
+		case STATE_Values:
+			assert(m_iB = DIM(s_aBHeader));
+			break;
+		}
+	}
+
+	bool CReader::FIsCrcCorrect() const
+	{
+		U16 crc = 0xFFFF;
+
+		for (const auto & b : m_aB)
+		{
+			crc = Adafruit_Sensor_Calibration::crc16_update(crc, b);
+		}
+
+		return crc == 0;
+	}
+
+	void CReader::SetCalib(Adafruit_Sensor_Calibration *pCalib) const
+	{
+		// why not a union? because there are 2 bytes before and after the floats (header and crc),
+		//	and these mess up alignment of the floats.
+
+		float aG[16];
+
+		assert(sizeof(m_aB) == sizeof(aG) + 4);
+		memcpy(aG, &m_aB[2], sizeof(aG));
+
+		pCalib->accel_zerog[0] = aG[0];
+		pCalib->accel_zerog[1] = aG[1];
+		pCalib->accel_zerog[2] = aG[2];
+
+		pCalib->gyro_zerorate[0] = aG[3];
+		pCalib->gyro_zerorate[1] = aG[4];
+		pCalib->gyro_zerorate[2] = aG[5];
+
+		pCalib->mag_hardiron[0] = aG[6];
+		pCalib->mag_hardiron[1] = aG[7];
+		pCalib->mag_hardiron[2] = aG[8];
+
+		pCalib->mag_field = aG[9];
+
+		pCalib->mag_softiron[0] = aG[10];
+		pCalib->mag_softiron[1] = aG[13];
+		pCalib->mag_softiron[2] = aG[14];
+		pCalib->mag_softiron[3] = aG[13];
+		pCalib->mag_softiron[4] = aG[11];
+		pCalib->mag_softiron[5] = aG[15];
+		pCalib->mag_softiron[6] = aG[14];
+		pCalib->mag_softiron[7] = aG[15];
+		pCalib->mag_softiron[8] = aG[12];
+	}
+
 	void TraceCalibration()
 	{
 		if (!s_fTrace)
@@ -101,6 +298,8 @@ namespace MotionCal
 		// motioncal app wants integers, and the factors below are how the adafruit ahrs
 		//	calibration code converts from float data from the sensors.
 		//	https://github.com/adafruit/Adafruit_AHRS/blob/master/examples/calibration/calibration.ino
+		// they are (roughly) the inverses of the *_PER_COUNT constants defined in MotionCal:
+		//	https://github.com/PaulStoffregen/MotionCal/blob/master/imuread.h
 
 		std::pair<Adafruit_Sensor *, float> s_aPairPSensRS[] = {
 			{ g_pSensAccel, 8192.0f / 9.8f },
@@ -139,34 +338,44 @@ namespace MotionCal
 
 		TRACE(
 			"Uni:"
-				"%.2f,%.2f,%.2f,"
-				"%.4f,%.4f,%.4f,"
-				"%.2f,%.2f,%.2f\r\n",
+				"%.5f,%.5f,%.5f,"
+				"%.5f,%.5f,%.5f,"
+				"%.5f,%.5f,%.5f\r\n",
 			aryS[0], aryS[1], aryS[2],
 			aryS[3], aryS[4], aryS[5],
 			aryS[6], aryS[7], aryS[8]);
 
 		constexpr int s_cTraceCal1 = 50;
+		constexpr int s_cTraceCal2 = 100;
 		static int s_cTrace = 0;
 		
 		TRACE(
 			(s_cTrace % s_cTraceCal1) == 0,
 			"Cal1:"
-				"%.3f,%.3f,%.3f,"
-				"%.3f,%.3f,%.3f,"
-				"%.3f,%.3f,%.3f,"
-				"%.3f\r\n",
+				"%.5f,%.5f,%.5f,"
+				"%.5f,%.5f,%.5f,"
+				"%.5f,%.5f,%.5f,"
+				"%.5f\r\n",
 			g_calib.accel_zerog[0], g_calib.accel_zerog[1], g_calib.accel_zerog[2],
 			g_calib.gyro_zerorate[0], g_calib.gyro_zerorate[1], g_calib.gyro_zerorate[2],
 			g_calib.mag_hardiron[0], g_calib.mag_hardiron[1], g_calib.mag_hardiron[2],
 			g_calib.mag_field);
 
+		TRACE(
+			(s_cTrace % s_cTraceCal2) == 0,
+			"Cal2:"
+				"%.5f,%.5f,%.5f,"
+				"%.5f,%.5f,%.5f,"
+				"%.5f,%.5f,%.5f\r\n",
+			g_calib.mag_softiron[0], g_calib.mag_softiron[1], g_calib.mag_softiron[2],
+			g_calib.mag_softiron[3], g_calib.mag_softiron[4], g_calib.mag_softiron[5],
+			g_calib.mag_softiron[6], g_calib.mag_softiron[7], g_calib.mag_softiron[8]);
+
 		s_cTrace += 1;
 
-		delay(10);
+		g_reader.Update();
  	}
 }
-
 
 void Motion::Update()
 {
