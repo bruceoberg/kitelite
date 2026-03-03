@@ -118,10 +118,10 @@ namespace MotionCal
 			{
 				static const char * s_mpStatePchz[] =
 				{
-					"Idle",
 					"Header",
 					"Values",
 				};
+				static_assert(STATE_Max == DIM(s_mpStatePchz));
 
 				return s_mpStatePchz[state];
 			}
@@ -228,7 +228,7 @@ namespace MotionCal
 			break;
 
 		case STATE_Values:
-			assert(m_iB = DIM(s_aBHeader));
+			assert(m_iB == DIM(s_aBHeader));
 			break;
 		}
 	}
@@ -247,37 +247,78 @@ namespace MotionCal
 
 	void CReader::SetCalib(Adafruit_Sensor_Calibration *pCalib) const
 	{
+		// incoming floats as written by:
+		//	MotionCal - https://github.com/PaulStoffregen/MotionCal/blob/master/rawdata.c
+		//	SensorCal - https://github.com/bruceoberg/SensorCal/blob/main/src/serialdata.cpp
+		// see: send_calibration() in both files
+
+		enum IG
+		{
+
+			IG_AccelZeroG_X,
+			IG_AccelZeroG_Y,
+			IG_AccelZeroG_Z,
+
+			IG_GyroZeroRate_X,
+			IG_GyroZeroRate_Y,
+			IG_GyroZeroRate_Z,
+
+			IG_MagHardIron_X,
+			IG_MagHardIron_Y,
+			IG_MagHardIron_Z,
+
+			IG_MagField,
+
+			IG_MagSoftIron_XX,
+			IG_MagSoftIron_YY,
+			IG_MagSoftIron_ZZ,
+			IG_MagSoftIron_XY,
+			IG_MagSoftIron_XZ,
+			IG_MagSoftIron_YZ,
+
+			IG_Max,
+
+			// only 6 values for the soft iron matrix are sent because it's symetric
+
+			IG_MagSoftIron_YX = IG_MagSoftIron_XY,
+			IG_MagSoftIron_ZX = IG_MagSoftIron_XZ,
+			IG_MagSoftIron_ZY = IG_MagSoftIron_YZ,
+
+			IG_Min = 0,
+			IG_Nil = -1
+		};
+
+		float aG[IG_Max];
+
 		// why not a union? because there are 2 bytes before and after the floats (header and crc),
 		//	and these mess up alignment of the floats.
 
-		float aG[16];
-
-		assert(sizeof(m_aB) == sizeof(aG) + 4);
+		static_assert(sizeof(m_aB) == sizeof(aG) + 4);
 		memcpy(aG, &m_aB[2], sizeof(aG));
 
-		pCalib->accel_zerog[0] = aG[0];
-		pCalib->accel_zerog[1] = aG[1];
-		pCalib->accel_zerog[2] = aG[2];
+		pCalib->accel_zerog[0] = aG[IG_AccelZeroG_X];
+		pCalib->accel_zerog[1] = aG[IG_AccelZeroG_Y];
+		pCalib->accel_zerog[2] = aG[IG_AccelZeroG_Z];
 
-		pCalib->gyro_zerorate[0] = aG[3];
-		pCalib->gyro_zerorate[1] = aG[4];
-		pCalib->gyro_zerorate[2] = aG[5];
+		pCalib->gyro_zerorate[0] = aG[IG_GyroZeroRate_X];
+		pCalib->gyro_zerorate[1] = aG[IG_GyroZeroRate_Y];
+		pCalib->gyro_zerorate[2] = aG[IG_GyroZeroRate_Z];
 
-		pCalib->mag_hardiron[0] = aG[6];
-		pCalib->mag_hardiron[1] = aG[7];
-		pCalib->mag_hardiron[2] = aG[8];
+		pCalib->mag_hardiron[0] = aG[IG_MagHardIron_X];
+		pCalib->mag_hardiron[1] = aG[IG_MagHardIron_Y];
+		pCalib->mag_hardiron[2] = aG[IG_MagHardIron_Z];
 
-		pCalib->mag_field = aG[9];
+		pCalib->mag_field = aG[IG_MagField];
 
-		pCalib->mag_softiron[0] = aG[10];
-		pCalib->mag_softiron[1] = aG[13];
-		pCalib->mag_softiron[2] = aG[14];
-		pCalib->mag_softiron[3] = aG[13];
-		pCalib->mag_softiron[4] = aG[11];
-		pCalib->mag_softiron[5] = aG[15];
-		pCalib->mag_softiron[6] = aG[14];
-		pCalib->mag_softiron[7] = aG[15];
-		pCalib->mag_softiron[8] = aG[12];
+		pCalib->mag_softiron[0] = aG[IG_MagSoftIron_XX];
+		pCalib->mag_softiron[1] = aG[IG_MagSoftIron_YX];
+		pCalib->mag_softiron[2] = aG[IG_MagSoftIron_XZ];
+		pCalib->mag_softiron[3] = aG[IG_MagSoftIron_YX];
+		pCalib->mag_softiron[4] = aG[IG_MagSoftIron_YY];
+		pCalib->mag_softiron[5] = aG[IG_MagSoftIron_YZ];
+		pCalib->mag_softiron[6] = aG[IG_MagSoftIron_ZX];
+		pCalib->mag_softiron[7] = aG[IG_MagSoftIron_ZY];
+		pCalib->mag_softiron[8] = aG[IG_MagSoftIron_ZZ];
 	}
 
 	void TraceCalibration()
@@ -288,7 +329,7 @@ namespace MotionCal
 		if (!g_fTraceCalibration)
 			return;
 
-		if (!g_pSensAccel || !g_pSensGyro || !g_pSensAccel)
+		if (!g_pSensAccel || !g_pSensGyro || !g_pSensMagno)
 		{
 			TRACE("[MOTION] can't calibrate - missing a sensor\n");
 			g_fTraceCalibration = false;
