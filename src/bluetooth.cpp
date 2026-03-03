@@ -102,6 +102,7 @@ namespace BlueTooth
 					"Connected",
 					"ReadyToIdle",
 				};
+				static_assert(STATE_Max == DIM(s_mpStatePchz));
 
 				return s_mpStatePchz[state];
 			}
