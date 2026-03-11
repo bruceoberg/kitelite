@@ -79,6 +79,9 @@ void Motion::Startup()
 	constexpr U32 s_hzI2CBus = 400000; // 400KHz
 
 	Wire.setClock(s_hzI2CBus);
+
+	bool fLoaded = g_calib.loadCalibration();
+	TRACE(s_fTrace, "[MOTION] loadCalibration: %s\n", fLoaded ? "ok" : "no stored data");
 }
 
 
@@ -319,6 +322,9 @@ namespace MotionCal
 		pCalib->mag_softiron[6] = aG[IG_MagSoftIron_ZX];
 		pCalib->mag_softiron[7] = aG[IG_MagSoftIron_ZY];
 		pCalib->mag_softiron[8] = aG[IG_MagSoftIron_ZZ];
+	
+		bool fSaved = pCalib->saveCalibration();
+		TRACE(s_fTrace, "[MOTION] saveCalibration: %s\n", fSaved ? "ok" : "failed");
 	}
 
 	void TraceCalibration()
