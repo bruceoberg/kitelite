@@ -19,6 +19,8 @@ namespace Motion
 	constexpr bool s_fTrace = true;
 	bool g_fTraceCalibration = true;
 
+	constexpr bool s_fLoadSaveCalibration = false;
+
 	Adafruit_Sensor * g_pSensAccel = nullptr;
 	Adafruit_Sensor * g_pSensGyro = nullptr;
 	Adafruit_Sensor * g_pSensMagno = nullptr;
@@ -80,8 +82,11 @@ void Motion::Startup()
 
 	Wire.setClock(s_hzI2CBus);
 
-	bool fLoaded = g_calib.loadCalibration();
-	TRACE(s_fTrace, "[MOTION] loadCalibration: %s\n", fLoaded ? "ok" : "no stored data");
+	if (g_fTraceCalibration)
+	{
+		bool fLoaded = g_calib.loadCalibration();
+		TRACE(s_fTrace, "[MOTION] loadCalibration: %s\n", fLoaded ? "ok" : "no stored data");
+	}
 }
 
 
@@ -323,8 +328,11 @@ namespace MotionCal
 		pCalib->mag_softiron[7] = aG[IG_MagSoftIron_ZY];
 		pCalib->mag_softiron[8] = aG[IG_MagSoftIron_ZZ];
 	
-		bool fSaved = pCalib->saveCalibration();
-		TRACE(s_fTrace, "[MOTION] saveCalibration: %s\n", fSaved ? "ok" : "failed");
+		if (g_fTraceCalibration)
+		{
+			bool fSaved = pCalib->saveCalibration();
+			TRACE(s_fTrace, "[MOTION] saveCalibration: %s\n", fSaved ? "ok" : "failed");
+		}
 	}
 
 	void TraceCalibration()
