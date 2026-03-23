@@ -19,7 +19,7 @@ namespace Motion
 	constexpr bool s_fTrace = true;
 	bool g_fTraceCalibration = true;
 
-	constexpr bool s_fLoadSaveCalibration = false;
+	constexpr bool s_fLoadSaveCalibration = true;
 
 	Adafruit_Sensor * g_pSensAccel = nullptr;
 	Adafruit_Sensor * g_pSensGyro = nullptr;
@@ -82,7 +82,7 @@ void Motion::Startup()
 
 	Wire.setClock(s_hzI2CBus);
 
-	if (g_fTraceCalibration)
+	if (s_fLoadSaveCalibration)
 	{
 		bool fLoaded = g_calib.loadCalibration();
 		TRACE(s_fTrace, "[MOTION] loadCalibration: %s\n", fLoaded ? "ok" : "no stored data");
@@ -328,7 +328,7 @@ namespace MotionCal
 		pCalib->mag_softiron[7] = aG[IG_MagSoftIron_ZY];
 		pCalib->mag_softiron[8] = aG[IG_MagSoftIron_ZZ];
 	
-		if (g_fTraceCalibration)
+		if (s_fLoadSaveCalibration)
 		{
 			bool fSaved = pCalib->saveCalibration();
 			TRACE(s_fTrace, "[MOTION] saveCalibration: %s\n", fSaved ? "ok" : "failed");
@@ -435,6 +435,16 @@ namespace MotionCal
 void Motion::Update()
 {
 	MotionCal::TraceCalibration();
+}
+
+bool Motion::FIsSpecial()
+{
+#ifdef ADAFRUIT_SENSOR_CALIBRATION_ACCEL_GYRO_ALIGN
+	return true;
+#else
+	return false;
+#endif
+
 }
 
 #endif // ENABLE_MOTION

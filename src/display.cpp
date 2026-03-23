@@ -2,6 +2,7 @@
 
 #if ENABLE_DISPLAY
 
+#include "motion.h"
 #include "onboard.h"
 #include "trace.h"
 
@@ -54,7 +55,9 @@ void Display::Update()
 	U16 dX;
 	U16 dY;
 
-	g_canvas.getTextBounds(PROJECT_NAME, 0, 0, &x, &y, &dX, &dY);
+	const char * pChz = (Motion::FIsSpecial()) ? PROJECT_NAME "++" : PROJECT_NAME;
+
+	g_canvas.getTextBounds(pChz, 0, 0, &x, &y, &dX, &dY);
 	// center text on canvas
 	S16 xCursor = ((s_dX - dX) / 2) + x;
 	S16 yCursor = ((s_dY - dY) / 2) - y;
@@ -69,7 +72,7 @@ void Display::Update()
 	s_fTraceMetrics = false;
 
     g_canvas.setCursor(xCursor, yCursor);
-    g_canvas.println(PROJECT_NAME);
+    g_canvas.println(pChz);
     g_display.drawRGBBitmap(0, 0, g_canvas.getBuffer(), s_dX, s_dY);
     digitalWrite(TFT_BACKLITE, HIGH);
 }
