@@ -6,13 +6,14 @@
 #include "clock.h"
 #include "trace.h"
 
-#include "etl/vector.h"
+#include "libcalib/protocol.h"
 
 #include "Adafruit_Sensor_Calibration.h"
 #include "Adafruit_LIS3MDL.h"
 #include "Adafruit_ISM330DHCX.h"
 
-
+using namespace libcalib;
+using namespace libcalib::Protocol;
 
 namespace Motion
 {
@@ -32,6 +33,74 @@ namespace Motion
 }
 
 using namespace Motion;
+
+namespace MotionCal
+{
+	// protocol adapter: serial writer
+
+	struct CSerialWriter : IWriter	// tag = serialwtr
+	{
+		void Write(size_t cB, const uint8_t * pB) override
+		{
+			Serial.write(pB, cB);
+		}
+	};
+
+	// protocol adapter: serial reader
+
+	struct CSerialReader : IReader	// tag = serialrdr
+	{
+		size_t CbRead(size_t cBMax, uint8_t * pB) override
+		{
+			size_t cBAvail = Serial.available();
+			if (cBAvail == 0)
+				return 0;
+
+			if (cBAvail > cBMax)
+				cBAvail = cBMax;
+
+			return Serial.readBytes(pB, cBAvail);
+		}
+	};
+
+	// protocol adapter: calibration receiver
+
+	struct CCalReceiver : IReceiver	// tag = calrcvr
+	{
+		void OnMagCal(const Mag::SCal & cal) override
+		{
+			// convert Mag::SCal → Adafruit_Sensor_Calibration fields
+
+			g_calib.mag_hardiron[0] = cal.m_vecV.x;
+			g_calib.mag_hardiron[1] = cal.m_vecV.y;
+			g_calib.mag_hardiron[2] = cal.m_vecV.z;
+
+			g_calib.mag_field = cal.m_sB;
+
+			const SMatrix3 & w = cal.m_matWInv;
+			g_calib.mag_softiron[0] = w.vecX.x;
+			g_calib.mag_softiron[1] = w.vecX.y;
+			g_calib.mag_softiron[2] = w.vecX.z;
+			g_calib.mag_softiron[3] = w.vecY.x;
+			g_calib.mag_softiron[4] = w.vecY.y;
+			g_calib.mag_softiron[5] = w.vecY.z;
+			g_calib.mag_softiron[6] = w.vecZ.x;
+			g_calib.mag_softiron[7] = w.vecZ.y;
+			g_calib.mag_softiron[8] = w.vecZ.z;
+
+			if (s_fLoadSaveCalibration)
+			{
+				bool fSaved = g_calib.saveCalibration();
+				TRACE(s_fTrace, "[MOTION] saveCalibration: %s\n", fSaved ? "ok" : "failed");
+			}
+		}
+	};
+
+	CSerialWriter s_serialwtr;
+	CSerialReader s_serialrdr;
+	CCalReceiver s_calrcvr;
+	CManager s_protomgr(VER_Imucal);
+}
 
 void Motion::Startup()
 {
@@ -87,252 +156,36 @@ void Motion::Startup()
 		bool fLoaded = g_calib.loadCalibration();
 		TRACE(s_fTrace, "[MOTION] loadCalibration: %s\n", fLoaded ? "ok" : "no stored data");
 	}
+
+	MotionCal::s_protomgr.Init(&MotionCal::s_serialwtr, &MotionCal::s_serialrdr, &MotionCal::s_calrcvr);
 }
 
 
 namespace MotionCal
 {
+	// build a Mag::SCal from the current Adafruit_Sensor_Calibration state
 
-	class CReader // tag: reader
+	Mag::SCal CalFromAdafruit()
 	{
-	public:
-					CReader()
-					: m_state(STATE_Header),
-					  m_usecState(UsecNow()),
-					  m_iB(0),
-					  m_aB()
-						{ ; }
-		
-		void		Update();
+		Mag::SCal cal;
 
-	protected:
+		cal.m_vecV.x = g_calib.mag_hardiron[0];
+		cal.m_vecV.y = g_calib.mag_hardiron[1];
+		cal.m_vecV.z = g_calib.mag_hardiron[2];
 
-		enum STATE
-		{
-			STATE_Header,
-			STATE_Values,
+		cal.m_sB = g_calib.mag_field;
 
-			STATE_Max,
-			STATE_Min = 0,
-			STATE_Nil = -1
-		};
+		cal.m_matWInv.vecX.x = g_calib.mag_softiron[0];
+		cal.m_matWInv.vecX.y = g_calib.mag_softiron[1];
+		cal.m_matWInv.vecX.z = g_calib.mag_softiron[2];
+		cal.m_matWInv.vecY.x = g_calib.mag_softiron[3];
+		cal.m_matWInv.vecY.y = g_calib.mag_softiron[4];
+		cal.m_matWInv.vecY.z = g_calib.mag_softiron[5];
+		cal.m_matWInv.vecZ.x = g_calib.mag_softiron[6];
+		cal.m_matWInv.vecZ.y = g_calib.mag_softiron[7];
+		cal.m_matWInv.vecZ.z = g_calib.mag_softiron[8];
 
-		const char * PChzFromState(STATE state)
-		{
-			if (state == STATE_Nil)
-				return "Nil";
-
-			if (state >= STATE_Min && state < STATE_Max)
-			{
-				static const char * s_mpStatePchz[] =
-				{
-					"Header",
-					"Values",
-				};
-				static_assert(STATE_Max == DIM(s_mpStatePchz));
-
-				return s_mpStatePchz[state];
-			}
-
-			return "<Unknown>";
-		}
-
-		void		SetState(STATE state);
-
-		// see receiveCalibration() and crc16_update() here:
-		//	https://github.com/adafruit/Adafruit_AHRS/blob/master/examples/calibration/calibration.ino
-
-		bool		FIsCrcCorrect() const;
-		void		SetCalib(Adafruit_Sensor_Calibration * pCalib) const;
-
-		STATE		m_state;
-		USEC		m_usecState;
-
-		int			m_iB;			// may point into s_aBHeader or m_aB
-		U8			m_aB[68];		// 16 floats (4 bytes each) + 2 byte header + 2 byte crc correction
-
-		static U8	s_aBHeader[];	// byte
-	};
-
-	U8 CReader::s_aBHeader[] = { 117, 84 };
-	CReader g_reader;
-
-
-	void CReader::Update()
-	{
-		STATE statePrev = m_state;
-
-		while (true)
-		{
-			statePrev = m_state;
-
-			switch (m_state)
-			{
-			case STATE_Header:
-				if (Serial.available())
-				{
-					assert(m_iB < DIM(s_aBHeader));
-
-					if (Serial.read() == s_aBHeader[m_iB])
-					{
-						// keep header in buffer for crc later
-
-						m_aB[m_iB] = s_aBHeader[m_iB];
-
-						++m_iB;
-
-						if (m_iB == DIM(s_aBHeader))
-						{
-							SetState(STATE_Values);
-						}
-					}
-					else
-					{
-						m_iB = 0;
-					}
-				}
-				break;
-
-			case STATE_Values:
-				if (Serial.available())
-				{
-					assert(m_iB < DIM(m_aB));
-
-					m_aB[m_iB] = Serial.read();
-					++m_iB;
-
-					if (m_iB < DIM(m_aB))
-						break;
-
-					if (FIsCrcCorrect())
-					{
-						SetCalib(&g_calib);
-					}
-
-					SetState(STATE_Header);
-				}
-				break;
-			}
-
-			if (statePrev == m_state)
-				break;
-		};
-	}
-
-	void CReader::SetState(STATE state)
-	{
-		if (state == m_state)
-			return;
-
-		m_state = state;
-		m_usecState = UsecNow();
-
-		// new state
-
-		switch (m_state)
-		{
-		case STATE_Header:
-			m_iB = 0;
-			break;
-
-		case STATE_Values:
-			assert(m_iB == DIM(s_aBHeader));
-			break;
-		}
-	}
-
-	bool CReader::FIsCrcCorrect() const
-	{
-		U16 crc = 0xFFFF;
-
-		for (const auto & b : m_aB)
-		{
-			crc = Adafruit_Sensor_Calibration::crc16_update(crc, b);
-		}
-
-		return crc == 0;
-	}
-
-	void CReader::SetCalib(Adafruit_Sensor_Calibration *pCalib) const
-	{
-		// incoming floats as written by:
-		//	MotionCal - https://github.com/PaulStoffregen/MotionCal/blob/master/rawdata.c
-		//	SensorCal - https://github.com/bruceoberg/SensorCal/blob/main/src/serialdata.cpp
-		// see: send_calibration() in both files
-
-		enum IG
-		{
-
-			IG_AccelZeroG_X,
-			IG_AccelZeroG_Y,
-			IG_AccelZeroG_Z,
-
-			IG_GyroZeroRate_X,
-			IG_GyroZeroRate_Y,
-			IG_GyroZeroRate_Z,
-
-			IG_MagHardIron_X,
-			IG_MagHardIron_Y,
-			IG_MagHardIron_Z,
-
-			IG_MagField,
-
-			IG_MagSoftIron_XX,
-			IG_MagSoftIron_YY,
-			IG_MagSoftIron_ZZ,
-			IG_MagSoftIron_XY,
-			IG_MagSoftIron_XZ,
-			IG_MagSoftIron_YZ,
-
-			IG_Max,
-
-			// only 6 values for the soft iron matrix are sent because it's symetric
-
-			IG_MagSoftIron_YX = IG_MagSoftIron_XY,
-			IG_MagSoftIron_ZX = IG_MagSoftIron_XZ,
-			IG_MagSoftIron_ZY = IG_MagSoftIron_YZ,
-
-			IG_Min = 0,
-			IG_Nil = -1
-		};
-
-		float aG[IG_Max];
-
-		// why not a union? because there are 2 bytes before and after the floats (header and crc),
-		//	and these mess up alignment of the floats.
-
-		static_assert(sizeof(m_aB) == sizeof(aG) + 4);
-		memcpy(aG, &m_aB[2], sizeof(aG));
-
-		pCalib->accel_zerog[0] = aG[IG_AccelZeroG_X];
-		pCalib->accel_zerog[1] = aG[IG_AccelZeroG_Y];
-		pCalib->accel_zerog[2] = aG[IG_AccelZeroG_Z];
-
-		pCalib->gyro_zerorate[0] = aG[IG_GyroZeroRate_X];
-		pCalib->gyro_zerorate[1] = aG[IG_GyroZeroRate_Y];
-		pCalib->gyro_zerorate[2] = aG[IG_GyroZeroRate_Z];
-
-		pCalib->mag_hardiron[0] = aG[IG_MagHardIron_X];
-		pCalib->mag_hardiron[1] = aG[IG_MagHardIron_Y];
-		pCalib->mag_hardiron[2] = aG[IG_MagHardIron_Z];
-
-		pCalib->mag_field = aG[IG_MagField];
-
-		pCalib->mag_softiron[0] = aG[IG_MagSoftIron_XX];
-		pCalib->mag_softiron[1] = aG[IG_MagSoftIron_YX];
-		pCalib->mag_softiron[2] = aG[IG_MagSoftIron_XZ];
-		pCalib->mag_softiron[3] = aG[IG_MagSoftIron_YX];
-		pCalib->mag_softiron[4] = aG[IG_MagSoftIron_YY];
-		pCalib->mag_softiron[5] = aG[IG_MagSoftIron_YZ];
-		pCalib->mag_softiron[6] = aG[IG_MagSoftIron_ZX];
-		pCalib->mag_softiron[7] = aG[IG_MagSoftIron_ZY];
-		pCalib->mag_softiron[8] = aG[IG_MagSoftIron_ZZ];
-	
-		if (s_fLoadSaveCalibration)
-		{
-			bool fSaved = pCalib->saveCalibration();
-			TRACE(s_fTrace, "[MOTION] saveCalibration: %s\n", fSaved ? "ok" : "failed");
-		}
+		return cal;
 	}
 
 	void TraceCalibration()
@@ -350,86 +203,34 @@ namespace MotionCal
 			return;
 		}
 
-		// motioncal app wants integers, and the factors below are how the adafruit ahrs
-		//	calibration code converts from float data from the sensors.
-		//	https://github.com/adafruit/Adafruit_AHRS/blob/master/examples/calibration/calibration.ino
-		// they are (roughly) the inverses of the *_PER_COUNT constants defined in MotionCal:
-		//	https://github.com/PaulStoffregen/MotionCal/blob/master/imuread.h
+		// read sensors — SI units straight from Adafruit: m/s², rad/s, µT
 
-		std::pair<Adafruit_Sensor *, float> s_aPairPSensRS[] = {
-			{ g_pSensAccel, 8192.0f / 9.8f },
-			{ g_pSensGyro, SENSORS_RADS_TO_DPS * 16.0f}, 
-			{ g_pSensMagno, 10.0f },
-		};
+		sensors_event_t evtAccel, evtGyro, evtMag;
+		g_pSensAccel->getEvent(&evtAccel);
+		g_pSensGyro->getEvent(&evtGyro);
+		g_pSensMagno->getEvent(&evtMag);
 
-		// unwind readings into two arrays that we'll then print.
+		s_protomgr.SendSensorData(
+			evtAccel.data[0], evtAccel.data[1], evtAccel.data[2],
+			evtGyro.data[0],  evtGyro.data[1],  evtGyro.data[2],
+			evtMag.data[0],   evtMag.data[1],   evtMag.data[2]);
 
-		etl::vector<float, DIM(s_aPairPSensRS) * 3> aryS;
-		etl::vector<S32, DIM(s_aPairPSensRS) * 3> aryN;
+		// echo stored calibration periodically
 
-		for (const auto & pair : s_aPairPSensRS)
-		{
-			auto & pSens = pair.first;
-			auto & rS = pair.second;
-
-			sensors_event_t senevt;
-			pSens->getEvent(&senevt);
-
-			for (int i = 0; i < 3; ++i)
-			{
-				aryS.push_back(senevt.data[i]);
-				aryN.push_back(S32(rS * aryS.back()));
-			}
-		}
-
-		TRACE(
-			"Raw:"
-				"%d,%d,%d,"
-				"%d,%d,%d,"
-				"%d,%d,%d\r\n",
-			aryN[0], aryN[1], aryN[2],
-			aryN[3], aryN[4], aryN[5],
-			aryN[6], aryN[7], aryN[8]);
-
-		TRACE(
-			"Uni:"
-				"%.5f,%.5f,%.5f,"
-				"%.5f,%.5f,%.5f,"
-				"%.5f,%.5f,%.5f\r\n",
-			aryS[0], aryS[1], aryS[2],
-			aryS[3], aryS[4], aryS[5],
-			aryS[6], aryS[7], aryS[8]);
-
-		constexpr int s_cTraceCal1 = 50;
-		constexpr int s_cTraceCal2 = 100;
+		constexpr int s_cTraceCal = 50;
 		static int s_cTrace = 0;
-		
-		TRACE(
-			(s_cTrace % s_cTraceCal1) == 0,
-			"Cal1:"
-				"%.5f,%.5f,%.5f,"
-				"%.5f,%.5f,%.5f,"
-				"%.5f,%.5f,%.5f,"
-				"%.5f\r\n",
-			g_calib.accel_zerog[0], g_calib.accel_zerog[1], g_calib.accel_zerog[2],
-			g_calib.gyro_zerorate[0], g_calib.gyro_zerorate[1], g_calib.gyro_zerorate[2],
-			g_calib.mag_hardiron[0], g_calib.mag_hardiron[1], g_calib.mag_hardiron[2],
-			g_calib.mag_field);
 
-		TRACE(
-			(s_cTrace % s_cTraceCal2) == 0,
-			"Cal2:"
-				"%.5f,%.5f,%.5f,"
-				"%.5f,%.5f,%.5f,"
-				"%.5f,%.5f,%.5f\r\n",
-			g_calib.mag_softiron[0], g_calib.mag_softiron[1], g_calib.mag_softiron[2],
-			g_calib.mag_softiron[3], g_calib.mag_softiron[4], g_calib.mag_softiron[5],
-			g_calib.mag_softiron[6], g_calib.mag_softiron[7], g_calib.mag_softiron[8]);
+		if ((s_cTrace % s_cTraceCal) == 0)
+		{
+			s_protomgr.SendMagCal(CalFromAdafruit());
+		}
 
 		s_cTrace += 1;
 
-		g_reader.Update();
- 	}
+		// drain incoming serial (receives binary calibration packets from SensorCal)
+
+		s_protomgr.Update();
+	}
 }
 
 void Motion::Update()
