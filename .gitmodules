@@ -1,0 +1,6 @@
+[submodule "lib/libcalib"]
+	path = lib/libcalib
+	url = git@github.com:bruceoberg/libcalib.git
+[submodule "lib/Fusion"]
+	path = lib/Fusion
+	url = git@github.com:xioTechnologies/Fusion.git
