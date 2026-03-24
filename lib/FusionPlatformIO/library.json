@@ -1,0 +1,10 @@
+{
+	"name": "Fusion",
+	"version": "1.2.11",
+	"description": "PlatformIO shim for xioTechnologies/Fusion AHRS. Fusion's sources live in a nested Fusion/Fusion/ subdirectory that PlatformIO cannot auto-discover, so this shim points srcDir and includeDir at the actual source location. Version must match lib/Fusion/pyproject.toml.",
+	"license": "MIT",
+	"build": {
+		"srcDir": "../Fusion/Fusion",
+		"includeDir": "../Fusion/Fusion"
+	}
+}
