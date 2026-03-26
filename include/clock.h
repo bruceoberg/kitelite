@@ -73,8 +73,8 @@ public:
 				: m_usec(usec)
 					{ ; }
 
-	void	Reset()
-				{ m_usec = UsecNow(); }
+	void	Reset(USEC usec = UsecNow())
+				{ m_usec = usec; }
 
 	USEC	Usec() const
 				{ return m_usec; }
