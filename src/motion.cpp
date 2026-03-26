@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "clock.h"
+#include "screen_calib.h"
 #include "trace.h"
 
 #include "libcalib/protocol.h"
@@ -195,6 +196,11 @@ namespace MotionCal
 
 		if (!g_fTraceCalibration)
 			return;
+
+#if ENABLE_DISPLAY
+		if (!Screen::FIsActive(Screen::Calib()))
+			return;
+#endif // ENABLE_DISPLAY
 
 		if (!g_pSensAccel || !g_pSensGyro || !g_pSensMagno)
 		{

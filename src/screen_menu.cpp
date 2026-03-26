@@ -1,4 +1,6 @@
 #include "screen_menu.h"
+#include "screen_about.h"
+#include "screen_calib.h"
 
 #if ENABLE_DISPLAY
 
@@ -64,13 +66,14 @@ static void DrawBitmapScaled(GFXcanvas16 & canvas, S16 x, S16 y, const U8 * pBit
 
 // stub menu tree — placeholder items for testing navigation
 
-static void StubAction() { ; }
+static void PushCalib() { Screen::Push(Screen::Calib()); }
+static void PushAbout() { Screen::Push(Screen::About()); }
 
 static const SMenuItem s_aMenuiRoot[] =
 {
 	{ "Lights",		nullptr,	nullptr,		nullptr },
-	{ "Calibrate",	nullptr,	StubAction,		nullptr },
-	{ "About",		nullptr,	StubAction,		nullptr },
+	{ "Calibrate",	nullptr,	PushCalib,		nullptr },
+	{ "About",		nullptr,	PushAbout,		nullptr },
 };
 
 static const SMenu s_menuRoot =
@@ -85,7 +88,7 @@ static CScreenMenu g_screenMenu;
 
 CScreenMenu::CScreenMenu()
 : m_fDirty(true),
-  m_usecHomeDown(USEC_Nil)
+  m_usecUncovered(USEC_Nil)
 {
 }
 
@@ -93,12 +96,13 @@ void CScreenMenu::OnPush()
 {
 	m_menunav.Push(&s_menuRoot);
 	m_fDirty = true;
-	m_usecHomeDown = USEC_Nil;
+	m_usecUncovered = UsecNow();
 }
 
 void CScreenMenu::OnUncover()
 {
 	m_fDirty = true;
+	m_usecUncovered = UsecNow();
 }
 
 void CScreenMenu::OnInput(Input::SEvent event)
@@ -109,15 +113,15 @@ void CScreenMenu::OnInput(Input::SEvent event)
 	{
 		case Input::KEY_OnBoard0:	// Home
 		{
-			if (event.m_eventk == Input::EVENTK_KeyDown)
+			if (event.m_eventk == Input::EVENTK_KeyUp)
 			{
-				m_usecHomeDown = event.m_usec;
-			}
-			else if (event.m_eventk == Input::EVENTK_KeyUp)
-			{
-				bool fLongPress = (m_usecHomeDown != USEC_Nil) &&
-									(event.m_usec - m_usecHomeDown >= s_dUsecLongPress);
-				m_usecHomeDown = USEC_Nil;
+				// ignore KeyUp if the key went down before we were uncovered
+
+				USEC usecDown = Input::UsecKeyDown(Input::KEY_OnBoard0);
+				if (usecDown < m_usecUncovered)
+					break;
+
+				bool fLongPress = (event.m_usec - usecDown >= s_dUsecLongPress);
 
 				if (fLongPress)
 				{

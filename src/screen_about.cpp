@@ -1,5 +1,4 @@
-#include "screen_home.h"
-#include "screen_menu.h"
+#include "screen_about.h"
 
 #if ENABLE_DISPLAY
 
@@ -10,7 +9,9 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 
-void CScreenHome::Update()
+static CScreenAbout g_screenAbout;
+
+void CScreenAbout::Update()
 {
 	GFXcanvas16 & canvas = Display::Canvas();
 
@@ -40,12 +41,19 @@ void CScreenHome::Update()
 	canvas.println(pChz);
 }
 
-void CScreenHome::OnInput(Input::SEvent event)
+void CScreenAbout::OnInput(Input::SEvent event)
 {
-	if (event.m_key == Input::KEY_OnBoard1 && event.m_eventk == Input::EVENTK_KeyPressed)
+	if (event.m_key == Input::KEY_OnBoard0 && event.m_eventk == Input::EVENTK_KeyPressed)
 	{
-		Screen::Push(Screen::Menu());
+		Screen::Pop();
 	}
+}
+
+// Screen::About accessor
+
+IScreen * Screen::About()
+{
+	return &g_screenAbout;
 }
 
 #endif // ENABLE_DISPLAY

@@ -20,7 +20,7 @@ public:
 private:
 	CMenuNav	m_menunav;
 	bool		m_fDirty;
-	USEC		m_usecHomeDown;		// timestamp of KEY_OnBoard0 down, or USEC_Nil
+	USEC		m_usecUncovered;	// timestamp of last OnPush/OnUncover, for ignoring stale input
 };
 
 namespace Screen
