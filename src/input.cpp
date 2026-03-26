@@ -10,25 +10,43 @@ namespace Input
 	{
 				SKeyStamps(USEC usec = UsecNow())
 				: m_usUp(usec),
-				  m_usDown(usec)
+				  m_usDown(usec),
+				  m_usecFlipMade(usec),
+				  m_usecFlipUsed(usec)
 					{ ; }
 
 		void	SetDown(bool fDown)
 					{
-						if (fDown) 
+						USEC usec = UsecNow();
+						bool fWasDown = FIsDown();
+
+						if (fDown)
 						{
-							m_usDown.Reset();
+							m_usDown.Reset(usec);
 						}
 						else
 						{
-							m_usUp.Reset();
+							m_usUp.Reset(usec);
+						}
+
+						// BB bruceo: my kingdom for logical xor
+
+						if (fWasDown != FIsDown())
+						{
+							m_usecFlipMade = usec;
 						}
 					}
 		bool	FIsDown() const
 					{ return m_usUp.Usec() < m_usDown.Usec(); }
+		bool	FHasFlip() const
+					{ return m_usecFlipMade > m_usecFlipUsed; }
+		void	UseFlip(USEC usec = UsecNow())
+					{ m_usecFlipUsed = usec; }
 
 		CUpStamp	m_usUp;		// last seen up state
 		CUpStamp	m_usDown;	// last seen down state
+		USEC		m_usecFlipMade;	// time we detected a flipped up/down state
+		USEC		m_usecFlipUsed;	// time we consumed said flip.
 	};
 
 	etl::vector<SKeyStamps, Input::KEY_Max> g_aryKeys;
@@ -64,6 +82,32 @@ void Input::Push(const SEvent &event)
 
 void Input::Update()
 {
+	// edge detection: compare current key state against previous frame
+
+	USEC usec = UsecNow();
+
+	for (int iKey = 0; iKey < Input::KEY_Max; ++iKey)
+	{
+		KEY key = static_cast<KEY>(iKey);
+		
+		if (!g_aryKeys[key].FHasFlip())
+			continue;
+
+		g_aryKeys[key].UseFlip();
+
+		if (g_aryKeys[key].FIsDown())
+		{
+			Push(SEvent(EVENTK_KeyDown, usec, key));
+			Push(SEvent(EVENTK_KeyPressed, usec, key));
+		}
+		else
+		{
+			Push(SEvent(EVENTK_KeyUp, usec, key));
+		}
+	}
+
+	// drain the event queue
+
 	while (!g_qEvent.empty())
 	{
 		Input::SEvent event;
