@@ -1,5 +1,5 @@
 #include "main.h"
-#include "screen_home.h"
+#include "screen_menu.h"
 
 #include "FastLED.h"
 
@@ -17,8 +17,7 @@ void setup()
 	Screen::Startup();
 
 #if ENABLE_DISPLAY
-	static CScreenHome s_screenhome;
-	Screen::Push(&s_screenhome);
+	Screen::Push(Screen::Menu());
 #endif // ENABLE_DISPLAY
 }
 
