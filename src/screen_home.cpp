@@ -1,4 +1,5 @@
 #include "screen_home.h"
+#include "screen_menu.h"
 
 #if ENABLE_DISPLAY
 
@@ -41,6 +42,10 @@ void CScreenHome::Update()
 
 void CScreenHome::OnInput(Input::SEvent event)
 {
+	if (event.m_key == Input::KEY_OnBoard1 && event.m_eventk == Input::EVENTK_KeyPressed)
+	{
+		Screen::Push(Screen::Menu());
+	}
 }
 
 #endif // ENABLE_DISPLAY
