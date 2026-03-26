@@ -26,5 +26,7 @@ namespace Screen
 	void Push(IScreen * pScreen);
 	void Pop();
 
+	bool FIsActive(IScreen * pScreen);
+
 	void DispatchInput(Input::SEvent event);
 } // namespace Screen

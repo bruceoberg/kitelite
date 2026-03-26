@@ -65,6 +65,11 @@ public:
 			pScreenNew->OnUncover();
 	}
 
+	bool FIsActive(IScreen * pScreen)
+	{
+		return pScreen && pScreen == PScreenTop();
+	}
+
 	void DispatchInput(Input::SEvent event)
 	{
 		IScreen * pScreen = PScreenTop();
@@ -110,6 +115,11 @@ void Screen::Push(IScreen * pScreen)
 void Screen::Pop()
 {
 	g_screenmgr.Pop();
+}
+
+bool Screen::FIsActive(IScreen * pScreen)
+{
+	return g_screenmgr.FIsActive(pScreen);
 }
 
 void Screen::DispatchInput(Input::SEvent event)
