@@ -74,6 +74,11 @@ bool Input::FIsKeyDown(KEY key)
 	return g_aryKeys[key].FIsDown();
 }
 
+USEC Input::UsecKeyDown(KEY key)
+{
+	return g_aryKeys[key].m_usDown.Usec();
+}
+
 void Input::Push(const SEvent &event)
 {
 	if (!g_qEvent.full())

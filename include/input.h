@@ -56,6 +56,7 @@ namespace Input
 
 	void SetKeyDown(KEY key, bool fDown);
 	bool FIsKeyDown(KEY key);
+	USEC UsecKeyDown(KEY key);
 
 	void Push(const SEvent & event);
 
