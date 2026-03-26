@@ -9,4 +9,5 @@
 #include "lights.h"
 #include "motion.h"
 #include "onboard.h"
+#include "screen.h"
 #include "trace.h"

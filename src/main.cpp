@@ -13,6 +13,7 @@ void setup()
 	Lights::Startup();
 	Motion::Startup();
 	Display::Startup();
+	Screen::Startup();
 }
 
 void loop()
@@ -24,6 +25,7 @@ void loop()
 	Lights::Update();
 	Motion::Update();
 	Display::Update();
+	Screen::Update();
 
 #if ENABLE_FASTLED_SHOW
 	// showing LEDs after all updates so multiple modules (e.g. onboard and lights) can cooperate.
