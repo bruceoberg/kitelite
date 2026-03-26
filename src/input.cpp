@@ -1,4 +1,5 @@
 #include "input.h"
+#include "screen.h"
 
 #include "etl/vector.h"
 #include "etl/queue.h"
@@ -57,9 +58,17 @@ bool Input::FIsKeyDown(KEY key)
 
 void Input::Push(const SEvent &event)
 {
+	if (!g_qEvent.full())
+		g_qEvent.push(event);
 }
 
 void Input::Update()
 {
+	while (!g_qEvent.empty())
+	{
+		Input::SEvent event;
+		g_qEvent.pop_into(event);
+		Screen::DispatchInput(event);
+	}
 }
 

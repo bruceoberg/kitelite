@@ -1,4 +1,5 @@
 #include "main.h"
+#include "screen_home.h"
 
 #include "FastLED.h"
 
@@ -14,6 +15,11 @@ void setup()
 	Motion::Startup();
 	Display::Startup();
 	Screen::Startup();
+
+#if ENABLE_DISPLAY
+	static CScreenHome s_screenhome;
+	Screen::Push(&s_screenhome);
+#endif // ENABLE_DISPLAY
 }
 
 void loop()
@@ -25,7 +31,6 @@ void loop()
 	Lights::Update();
 	Motion::Update();
 	Display::Update();
-	Screen::Update();
 
 #if ENABLE_FASTLED_SHOW
 	// showing LEDs after all updates so multiple modules (e.g. onboard and lights) can cooperate.

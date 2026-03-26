@@ -2,11 +2,10 @@
 
 #if ENABLE_DISPLAY
 
-#include "motion.h"
-#include "onboard.h"
+#include "screen.h"
 #include "trace.h"
 
-#include <Adafruit_ST7789.h> 
+#include <Adafruit_ST7789.h>
 #include <Fonts/FreeSans12pt7b.h>
 
 
@@ -40,41 +39,19 @@ void Display::Startup()
 
 
 
+GFXcanvas16 & Display::Canvas()
+{
+	return g_canvas;
+}
+
 void Display::Update()
 {
-	uint16_t colText =
-				uint16_t((OnBoard::ColorCycle::r >> 3) << 11) |
-				uint16_t((OnBoard::ColorCycle::g >> 2) << 5) |
-				uint16_t((OnBoard::ColorCycle::b >> 3) << 0);
-    g_canvas.setTextColor(colText);
+	Screen::Update();
 
-    g_canvas.fillScreen(ST77XX_BLACK);
+	// blit canvas to display hardware
 
-	S16 x;
-	S16 y;
-	U16 dX;
-	U16 dY;
-
-	const char * pChz = (Motion::FIsSpecial()) ? PROJECT_NAME "++" : PROJECT_NAME;
-
-	g_canvas.getTextBounds(pChz, 0, 0, &x, &y, &dX, &dY);
-	// center text on canvas
-	S16 xCursor = ((s_dX - dX) / 2) + x;
-	S16 yCursor = ((s_dY - dY) / 2) - y;
-
-	static bool s_fTraceMetrics = false; // s_fTrace;
-
-	TRACE(
-		s_fTraceMetrics,
-		"[DISPLAY] x:%d, y:%d, dX:%d, dY:%d, xCursor:%d yCursor:%d\n",
-		x, y, dX, dY, xCursor, yCursor);
-
-	s_fTraceMetrics = false;
-
-    g_canvas.setCursor(xCursor, yCursor);
-    g_canvas.println(pChz);
-    g_display.drawRGBBitmap(0, 0, g_canvas.getBuffer(), s_dX, s_dY);
-    digitalWrite(TFT_BACKLITE, HIGH);
+	g_display.drawRGBBitmap(0, 0, g_canvas.getBuffer(), s_dX, s_dY);
+	digitalWrite(TFT_BACKLITE, HIGH);
 }
 
 #endif // ENABLE_DISPLAY
