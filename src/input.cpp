@@ -17,8 +17,11 @@ namespace Input
 
 		void	SetDown(bool fDown)
 					{
-						USEC usec = UsecNow();
 						bool fWasDown = FIsDown();
+						if (fWasDown == fDown)
+							return;
+
+						USEC usec = UsecNow();
 
 						if (fDown)
 						{
@@ -29,12 +32,7 @@ namespace Input
 							m_usUp.Reset(usec);
 						}
 
-						// BB bruceo: my kingdom for logical xor
-
-						if (fWasDown != FIsDown())
-						{
-							m_usecFlipMade = usec;
-						}
+						m_usecFlipMade = usec;
 					}
 		bool	FIsDown() const
 					{ return m_usUp.Usec() < m_usDown.Usec(); }
